@@ -1,11 +1,11 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type User struct {
@@ -14,39 +14,40 @@ type User struct {
 }
 
 func main() {
-	db, err := sql.Open("mysql", "root:root@/rocketseat")
+	connUrl := "postgres://postgres:postgres@localhost:5432/rocketseat"
+	db, err := pgxpool.New(context.Background(), connUrl)
 	if err != nil {
 		panic(err)
 	}
 
 	defer db.Close()
 
-	db.SetConnMaxLifetime(time.Minute * 3)
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(10)
+	if err := db.Ping(context.Background()); err != nil {
+		panic(err)
+	}
 
 	query := `CREATE TABLE IF NOT EXISTS users (
-		id INT AUTO_INCREMENT PRIMARY KEY,
+		id BIGSERIAL PRIMARY KEY,
 		name VARCHAR(255) NOT NULL
 	)`
 
-	if _, err := db.Exec(query); err != nil {
+	if _, err := db.Exec(context.Background(), query); err != nil {
 		panic(err)
 	}
 
 	fmt.Println("Table created successfully")
 
-	query = `INSERT INTO users (name) VALUES (?)`
+	query = `INSERT INTO users (name) VALUES ($1)`
 	input := fmt.Sprintf("User %d", time.Now().UnixMilli())
 
-	if _, err := db.Exec(query, input); err != nil {
+	if _, err := db.Exec(context.Background(), query, input); err != nil {
 		panic(err)
 	}
 
 	fmt.Println("User created successfully")
 
 	query = `SELECT * FROM users`
-	rows, err := db.Query(query)
+	rows, err := db.Query(context.Background(), query)
 	if err != nil {
 		panic(err)
 	}
@@ -55,9 +56,11 @@ func main() {
 
 	for rows.Next() {
 		var user User
-		rows.Scan(&user.ID, &user.Name)
-		fmt.Printf("User: %+v\n", user)
+		if err := rows.Scan(&user.ID, &user.Name); err != nil {
+			panic(err)
+		}
 
+		fmt.Printf("User: %+v\n", user)
 	}
 
 	fmt.Println("Users fetched successfully")
