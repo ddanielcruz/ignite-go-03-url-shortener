@@ -3,65 +3,65 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type User struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-}
-
 func main() {
+	ctx := context.Background()
 	connUrl := "postgres://postgres:postgres@localhost:5432/rocketseat"
-	db, err := pgxpool.New(context.Background(), connUrl)
+	db, err := pgxpool.New(ctx, connUrl)
 	if err != nil {
 		panic(err)
 	}
 
 	defer db.Close()
 
-	if err := db.Ping(context.Background()); err != nil {
-		panic(err)
-	}
+	queries := New(db)
 
-	query := `CREATE TABLE IF NOT EXISTS users (
-		id BIGSERIAL PRIMARY KEY,
-		name VARCHAR(255) NOT NULL
-	)`
+	// Create author
+	author, err := queries.CreateAuthor(ctx, CreateAuthorParams{
+		Name: "Daniel",
+		Bio:  pgtype.Text{String: "I'm a software engineer", Valid: true},
+	})
 
-	if _, err := db.Exec(context.Background(), query); err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Table created successfully")
-
-	query = `INSERT INTO users (name) VALUES ($1)`
-	input := fmt.Sprintf("User %d", time.Now().UnixMilli())
-
-	if _, err := db.Exec(context.Background(), query, input); err != nil {
-		panic(err)
-	}
-
-	fmt.Println("User created successfully")
-
-	query = `SELECT * FROM users`
-	rows, err := db.Query(context.Background(), query)
 	if err != nil {
 		panic(err)
 	}
 
-	defer rows.Close()
+	fmt.Printf("Author: %+v\n", author)
 
-	for rows.Next() {
-		var user User
-		if err := rows.Scan(&user.ID, &user.Name); err != nil {
-			panic(err)
-		}
-
-		fmt.Printf("User: %+v\n", user)
+	// List authors
+	authors, err := queries.ListAuthors(ctx)
+	if err != nil {
+		panic(err)
 	}
 
-	fmt.Println("Users fetched successfully")
+	fmt.Printf("Authors: %+v\n", authors)
+
+	// Update author
+	err = queries.UpdateAuthor(ctx, UpdateAuthorParams{
+		ID:   author.ID,
+		Name: "Daniel",
+		Bio:  pgtype.Text{String: "Am I a software engineer?", Valid: true},
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	// Get author
+	author, err = queries.GetAuthor(ctx, author.ID)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Author: %+v\n", author)
+
+	// Delete author
+	err = queries.DeleteAuthor(ctx, author.ID)
+	if err != nil {
+		panic(err)
+	}
 }
