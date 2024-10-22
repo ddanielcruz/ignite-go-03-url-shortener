@@ -2,10 +2,10 @@ package main
 
 import (
 	"database/sql"
-	"log/slog"
-	"os"
+	"fmt"
+	"time"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type User struct {
@@ -14,53 +14,51 @@ type User struct {
 }
 
 func main() {
-	db, err := sql.Open("sqlite", "file:sqlite.db")
+	db, err := sql.Open("mysql", "root:root@/rocketseat")
 	if err != nil {
-		slog.Error("failed to open database", "error", err)
-		os.Exit(1)
+		panic(err)
 	}
 
-	// Close the database connection when the program exits
 	defer db.Close()
 
-	// Create the users table if it doesn't exist
-	createTableSql := `
-	CREATE TABLE IF NOT EXISTS users (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL
-	);
-	`
+	db.SetConnMaxLifetime(time.Minute * 3)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
 
-	_, err = db.Exec(createTableSql)
-	if err != nil {
-		slog.Error("failed to create table", "error", err)
-		os.Exit(1)
+	query := `CREATE TABLE IF NOT EXISTS users (
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		name VARCHAR(255) NOT NULL
+	)`
+
+	if _, err := db.Exec(query); err != nil {
+		panic(err)
 	}
 
-	// Insert a user into the database
-	insertUserSql := `
-	INSERT INTO users (name) VALUES (?)
-	`
+	fmt.Println("Table created successfully")
 
-	res, err := db.Exec(insertUserSql, "Daniel Cruz")
-	if err != nil {
-		slog.Error("failed to insert user", "error", err)
-		os.Exit(1)
+	query = `INSERT INTO users (name) VALUES (?)`
+	input := fmt.Sprintf("User %d", time.Now().UnixMilli())
+
+	if _, err := db.Exec(query, input); err != nil {
+		panic(err)
 	}
 
-	// Query the created user
-	queryUserSql := `
-	SELECT * FROM users WHERE id = ?
-	`
+	fmt.Println("User created successfully")
 
-	userId, _ := res.LastInsertId()
-	var user User
-
-	err = db.QueryRow(queryUserSql, userId).Scan(&user.ID, &user.Name)
+	query = `SELECT * FROM users`
+	rows, err := db.Query(query)
 	if err != nil {
-		slog.Error("failed to query user", "error", err)
-		os.Exit(1)
+		panic(err)
 	}
 
-	slog.Info("user", "user", user)
+	defer rows.Close()
+
+	for rows.Next() {
+		var user User
+		rows.Scan(&user.ID, &user.Name)
+		fmt.Printf("User: %+v\n", user)
+
+	}
+
+	fmt.Println("Users fetched successfully")
 }
