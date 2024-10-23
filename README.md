@@ -1,6 +1,8 @@
 # Ignite Go 03 - URL Shortener
 
-This project was created as a learning exercise to explore various storage types and database-related technologies in Go. The main focus was on understanding and implementing different SQL databases and Redis. The final project is a URL shortener API that uses Redis as the primary storage solution.
+This project was created as a learning exercise to explore various storage types and database-related technologies in Go. The main focus was on understanding and implementing different SQL databases and Redis.
+
+The final project is a URL shortener API that uses Redis as the primary storage solution.
 
 ## Technologies Explored
 
